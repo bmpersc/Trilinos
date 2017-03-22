@@ -193,7 +193,7 @@ void do_parallel_assemble()
 
       *field_data(universal_scalar_node_field, node) = p_rank + 1.0 + node_id;
 
-      double* data = field_data(universal_cartesian_node_field, node);
+      double* data = stk::mesh::field_data(universal_cartesian_node_field, node);
       for (int d = 0; d < 3; ++d) {
         data[d] = p_rank + (2.0*d) + node_id;
       }
@@ -246,7 +246,7 @@ void do_parallel_assemble()
                  (do_operation<double>(Op, p_rank + field_id + node_id, sharing_rank + field_id + node_id)) );
       ++field_id;
 
-      double* data = field_data(universal_cartesian_node_field, node);
+      double* data = stk::mesh::field_data(universal_cartesian_node_field, node);
       for (int d = 0; d < 3; ++d) {
         EXPECT_EQ( data[d], (do_operation<double>(Op, p_rank + field_id*d + node_id, sharing_rank + field_id*d + node_id)) );
       }

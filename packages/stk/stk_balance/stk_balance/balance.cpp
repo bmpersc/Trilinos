@@ -8,18 +8,27 @@
 #include "stk_util/environment/ReportHandler.hpp"  // for ThrowRequireMsg
 #include "stk_mesh/base/MeshDiagnostics.hpp"
 #include "stk_util/parallel/ParallelReduceBool.hpp"
+#include <stk_io/FillMesh.hpp>
+#include <stk_io/WriteMesh.hpp>
+#include "stk_io/StkIoUtils.hpp"
+#include <stk_tools/mesh_clone/MeshClone.hpp>
+#include "internal/LastStepFieldWriter.hpp"
+#include "stk_balance/internal/TransientFieldTransferById.hpp"
 
 namespace stk
 {
 namespace balance
 {
+void run_transient_stk_balance_with_settings(stk::io::StkMeshIoBroker &brokerA, const std::string& outputFilename, MPI_Comm comm, stk::balance::BalanceSettings& graphOptions);
+void run_static_stk_balance_with_settings(stk::mesh::BulkData &bulk, const std::string& outputFilename, stk::balance::BalanceSettings& graphOptions);
+
 
 bool loadBalance(const BalanceSettings& balanceSettings, stk::mesh::BulkData& stkMeshBulkData, unsigned numSubdomainsToCreate, const std::vector<stk::mesh::Selector>& selectors)
 {
     internal::logMessage(stkMeshBulkData.parallel(), "Starting rebalance.");
 
     stk::mesh::EntityProcVec decomp;
-    internal::callZoltan2(balanceSettings, numSubdomainsToCreate, decomp, stkMeshBulkData, selectors);
+    internal::calculateGeometricOrGraphBasedDecomp(balanceSettings, numSubdomainsToCreate, decomp, stkMeshBulkData, selectors);
 
     DecompositionChangeList changeList(stkMeshBulkData, decomp);
     balanceSettings.modifyDecomposition(changeList);
@@ -100,6 +109,53 @@ stk::mesh::EntityIdProcMap make_mesh_consistent_with_parallel_mesh_rule1(stk::me
     if(!allOkEverywhere)
         return rebalance_mesh_to_avoid_split_coincident_elements(bulkData, splitCoincidentElements);
     return stk::mesh::EntityIdProcMap();
+}
+
+void run_static_stk_balance_with_settings(stk::mesh::BulkData &bulk, const std::string& outputFilename, stk::balance::BalanceSettings& graphOptions)
+{
+    stk::balance::balanceStkMesh(graphOptions, bulk);
+    stk::io::write_mesh(outputFilename, bulk);
+}
+
+void run_transient_stk_balance_with_settings(stk::io::StkMeshIoBroker &brokerA, const std::string& outputFilename, MPI_Comm comm, stk::balance::BalanceSettings& graphOptions)
+{
+    stk::mesh::BulkData &bulkA = brokerA.bulk_data();
+    stk::mesh::MetaData metaB;
+    stk::mesh::BulkData bulkB(metaB, comm);
+    stk::io::StkMeshIoBroker brokerB;
+
+    brokerB.set_bulk_data(bulkB);
+    stk::tools::copy_mesh(bulkA, bulkA.mesh_meta_data().universal_part(), bulkB);
+
+    stk::balance::balanceStkMesh(graphOptions, bulkB);
+
+    stk::balance::internal::TransientFieldTransferById transfer(brokerA, brokerB);
+    transfer.transfer_and_write_transient_fields(outputFilename);
+}
+
+void run_stk_balance_with_settings(const std::string& outputFilename, const std::string& exodusFilename, MPI_Comm comm, stk::balance::BalanceSettings& graphOptions)
+{
+    stk::mesh::MetaData meta;
+    stk::mesh::BulkData bulk(meta, comm);
+    stk::io::StkMeshIoBroker broker;
+    broker.property_add(Ioss::Property("DECOMPOSITION_METHOD", "LINEAR"));
+    stk::io::fill_mesh_preexisting(broker, exodusFilename, bulk);
+
+    if(stk::io::get_transient_fields(meta).empty())
+    {
+        run_static_stk_balance_with_settings(bulk, outputFilename, graphOptions);
+    }
+    else
+    {
+        run_transient_stk_balance_with_settings(broker, outputFilename, comm, graphOptions);
+    }
+}
+
+void run_stk_rebalance(const std::string& outputDirectory, const std::string& exodusFilename, MPI_Comm comm)
+{
+    stk::balance::GraphCreationSettings graphOptions;
+    std::string outputFilename = outputDirectory + "/" + exodusFilename;
+    run_stk_balance_with_settings(outputFilename, exodusFilename, comm, graphOptions);
 }
 
 }

@@ -150,9 +150,7 @@ void UnitTestStkMeshBoundaryAnalysis::test_boundary_analysis()
   stk::mesh::PartVector shell_parts;
   shell_parts.push_back(&shell_part);
   for (unsigned i = 1; i <= num_shells; ++i) {
-    stk::mesh::Entity new_shell = bulk_data.declare_entity(element_rank,
-                                                            num_entities + i,
-                                                            shell_parts);
+    stk::mesh::Entity new_shell = bulk_data.declare_element(num_entities + i, shell_parts);
     shells.push_back(new_shell);
   }
 

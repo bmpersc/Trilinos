@@ -803,7 +803,7 @@ TEST(BulkDataModificationEnd, test_invalid_add_node_sharing)
         stk::unit_test_util::BulkDataTester mesh(meta_data, MPI_COMM_WORLD);
         mesh.modification_begin();
 
-        stk::mesh::Entity node1 = mesh.declare_entity(stk::topology::NODE_RANK, 1, node_part);
+        stk::mesh::Entity node1 = mesh.declare_node(1, {&node_part});
 
         if ( myProcId == 2 )
         {

@@ -127,14 +127,14 @@ TEST(UnitTestingOfBulkData, node_sharing)
   // Create the single element and four nodes for this processor.  Nodes
   // on the boundary with other processors will be shared.
   //
-  Entity createdElem = mesh.declare_entity(stk::topology::ELEM_RANK, connInfo[p_rank][0], elem_part);
+  Entity createdElem = mesh.declare_element(connInfo[p_rank][0], {&elem_part});
 
   // Create all 4 nodes for this element
   EntityVector createdNodes;
-  createdNodes.push_back( mesh.declare_entity(stk::topology::NODE_RANK, connInfo[p_rank][1], node_part) );
-  createdNodes.push_back( mesh.declare_entity(stk::topology::NODE_RANK, connInfo[p_rank][2], node_part) );
-  createdNodes.push_back( mesh.declare_entity(stk::topology::NODE_RANK, connInfo[p_rank][3], node_part) );
-  createdNodes.push_back( mesh.declare_entity(stk::topology::NODE_RANK, connInfo[p_rank][4], node_part) );
+  createdNodes.push_back( mesh.declare_node(connInfo[p_rank][1], {&node_part}) );
+  createdNodes.push_back( mesh.declare_node(connInfo[p_rank][2], {&node_part}) );
+  createdNodes.push_back( mesh.declare_node(connInfo[p_rank][3], {&node_part}) );
+  createdNodes.push_back( mesh.declare_node(connInfo[p_rank][4], {&node_part}) );
 
   // Add relations to nodes
   mesh.declare_relation( createdElem, createdNodes[0], 0 );
@@ -338,20 +338,20 @@ TEST(UnitTestingOfBulkData, node_sharing_with_dangling_nodes)
   // Create the single element and four nodes for this processor.  Nodes
   // on the boundary with other processors will be shared.
   //
-  Entity createdElem = mesh.declare_entity(stk::topology::ELEM_RANK, connInfo[p_rank][0], elem_part);
+  Entity createdElem = mesh.declare_element(connInfo[p_rank][0], {&elem_part});
 
   // Create all 4 nodes for this element
   EntityVector createdNodes;
-  createdNodes.push_back( mesh.declare_entity(stk::topology::NODE_RANK, connInfo[p_rank][1], node_part) );
-  createdNodes.push_back( mesh.declare_entity(stk::topology::NODE_RANK, connInfo[p_rank][2], node_part) );
-  createdNodes.push_back( mesh.declare_entity(stk::topology::NODE_RANK, connInfo[p_rank][3], node_part) );
-  createdNodes.push_back( mesh.declare_entity(stk::topology::NODE_RANK, connInfo[p_rank][4], node_part) );
+  createdNodes.push_back( mesh.declare_node(connInfo[p_rank][1], {&node_part}) );
+  createdNodes.push_back( mesh.declare_node(connInfo[p_rank][2], {&node_part}) );
+  createdNodes.push_back( mesh.declare_node(connInfo[p_rank][3], {&node_part}) );
+  createdNodes.push_back( mesh.declare_node(connInfo[p_rank][4], {&node_part}) );
 
 
   bool doNew = true;
   if (doNew)
     {
-      mesh.declare_entity(stk::topology::NODE_RANK, sharingInfo1[p_rank][0], node_part) ;
+      mesh.declare_node(sharingInfo1[p_rank][0], {&node_part}) ;
       std::cout << "P[" << p_rank << "] declared node= " << sharingInfo1[p_rank][0] << std::endl;
     }
 

@@ -115,8 +115,7 @@ void UnitTestStkMeshSkinning::test_skinning()
 
   std::vector<stk::mesh::Entity> shell_faces;
   for (unsigned i = 1; i <= num_shell_faces; ++i) {
-    stk::mesh::Entity new_shell = bulk_data.declare_entity(element_rank,
-                                                           num_entities + i,
+    stk::mesh::Entity new_shell = bulk_data.declare_element(num_entities + i,
                                                            shell_parts);
     shell_faces.push_back(new_shell);
   }

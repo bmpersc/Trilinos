@@ -71,6 +71,14 @@ namespace stk {
     
     static std::string CoordinateFieldName("coordinates");
 
+    struct QaRecord
+    {
+        std::string name;
+        std::string version;
+        std::string date;
+        std::string time;
+    };
+
     // ------------------------------------------------------------------------
     struct GlobalAnyVariable {
       GlobalAnyVariable(const std::string &name, const boost::any *value, stk::util::ParameterType::Type type)
@@ -91,6 +99,7 @@ namespace impl
 		 Ioss::PropertyManager& property_manager, const Ioss::Region *input_region, char const* type = "exodus")
         : m_current_output_step(-1), m_use_nodeset_for_part_nodes_fields(false),
           m_mesh_defined(false), m_fields_defined(false), m_non_any_global_variables_defined(false),
+          m_appending_to_mesh(false),
 	  m_db_purpose(db_type), m_input_region(input_region), m_subset_selector(NULL)
       {
 	setup_output_file(filename, communicator, property_manager, type);
@@ -100,6 +109,7 @@ namespace impl
 		 DatabasePurpose db_type, const Ioss::Region *input_region)
         : m_current_output_step(-1), m_use_nodeset_for_part_nodes_fields(false),
           m_mesh_defined(false), m_fields_defined(false), m_non_any_global_variables_defined(false),
+          m_appending_to_mesh(false),
 	  m_db_purpose(db_type), m_input_region(input_region), m_subset_selector(NULL)
       {
 	m_region = ioss_output_region;
@@ -116,7 +126,7 @@ namespace impl
       void write_output_mesh(const stk::mesh::BulkData& bulk_data);
       void flush_output() const;
       void add_field(stk::mesh::FieldBase &field, const std::string &alternate_name);
-
+      bool has_global(const std::string &globalVarName) const;
       void add_global(const std::string &variableName, const boost::any &value, stk::util::ParameterType::Type type);
       void add_global_ref(const std::string &variableName, const boost::any *value, stk::util::ParameterType::Type type);
       void add_global(const std::string &variableName, Ioss::Field::BasicType dataType);
@@ -152,6 +162,7 @@ namespace impl
       bool m_mesh_defined;
       bool m_fields_defined;
       bool m_non_any_global_variables_defined;
+      bool m_appending_to_mesh;
       DatabasePurpose m_db_purpose;
       const Ioss::Region* m_input_region;
       Teuchos::RCP<stk::mesh::Selector> m_subset_selector;
@@ -412,6 +423,11 @@ namespace impl
       // the above-declared 'populate_mesh()' method.
       void populate_field_data();
 
+      FieldNameToPartVector get_nodal_var_names();
+      FieldNameToPartVector get_elem_var_names();
+      FieldNameToPartVector get_nodeset_var_names();
+      FieldNameToPartVector get_sideset_var_names();
+
       // For all transient fields on the mesh database:
       // - declare a stk_field of the same name,
       // - add the field as in input field for the mesh 
@@ -433,7 +449,8 @@ namespace impl
       // not found.
       double read_defined_input_fields(int step,
 				       std::vector<stk::io::MeshField> *missing=NULL);
-
+      double read_defined_input_fields_at_step(int step,
+                                       std::vector<stk::io::MeshField> *missing=NULL);
       // For all transient input fields defined, read the data at the
       // specified database time 'time' and populate the stk data
       // structures with those values.  
@@ -522,7 +539,8 @@ namespace impl
       void add_field(size_t output_file_index,
 		     stk::mesh::FieldBase &field,
 		     const std::string &db_name);
-
+      bool has_global(size_t output_file_index,
+                      const std::string &globalVarName) const;
       void add_global_ref(size_t output_file_index,
 			  const std::string &variableName,
 			  const boost::any *value,
@@ -638,6 +656,15 @@ namespace impl
       void set_option_to_not_collapse_sequenced_fields();
       int get_num_time_steps();
       double get_max_time();
+      std::vector<double> get_time_steps();
+      void set_max_num_steps_before_overwrite(size_t outputFileIndex, int maxNumStepsInFile);
+
+      void set_name_and_version_for_qa_record(size_t outputFileIndex, const std::string &codeName, const std::string &codeVersion);
+      void add_qa_records(size_t outputFileIndex, const std::vector<QaRecord> &qaRecords);
+      void add_info_records(size_t outputFileIndex, const std::vector<std::string> &infoRecords);
+      std::vector<QaRecord> get_qa_records();
+      std::vector<std::string> get_info_records();
+      stk::mesh::FieldVector get_ordered_attribute_fields(const stk::mesh::Part *blockPart) const;
 
       //-END
     protected:
@@ -686,8 +713,9 @@ namespace impl
       Teuchos::RCP<stk::mesh::Selector> m_deprecated_selector;
 
       const stk::mesh::ConnectivityMap* m_connectivity_map;
-
+    protected:
       std::vector<Teuchos::RCP<impl::OutputFile> > m_output_files;
+    private:
       std::vector<Teuchos::RCP<impl::Heartbeat> > m_heartbeat;
     protected:
       std::vector<Teuchos::RCP<InputFile> > m_input_files;

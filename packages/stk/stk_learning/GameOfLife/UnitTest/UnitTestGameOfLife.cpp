@@ -8,13 +8,15 @@
 #include <stk_mesh/base/GetEntities.hpp>  // for get_entities
 #include <stk_topology/topology.hpp>    // for topology, etc
 #include <string>                       // for string
+
+#include "../../../stk_io/stk_io/FillMesh.hpp"
 #include "mpi.h"                        // for MPI_COMM_WORLD, etc
 #include "stk_mesh/base/Entity.hpp"     // for Entity
 #include "stk_mesh/base/Types.hpp"      // for EntityIdVector, etc
 #include "stk_util/parallel/Parallel.hpp"  // for parallel_machine_size, etc
 #include "stk_unit_test_utils/getOption.h"
-
-
+#include "stk_io/FillMesh.hpp"
+#include "stk_io/WriteMesh.hpp"
 
 
 
@@ -1276,7 +1278,7 @@ void create_nodeset_for_colored_pixels(stk::mesh::BulkData & bulk, SimpleColored
     std::string partName = "nodelist_" + std::to_string(pixelColor);
     stk::mesh::Part& nodesetPart = bulk.mesh_meta_data().declare_part(partName, stk::topology::NODE_RANK);
     for(stk::mesh::Entity node : elementNodes)
-        bulk.change_entity_parts(node, stk::mesh::PartVector {&nodesetPart});
+        bulk.change_entity_parts(node, stk::mesh::ConstPartVector{&nodesetPart});
     bulk.modification_end();
 }
 
@@ -1332,6 +1334,73 @@ TEST(TOSDTWD, hex_mesh_from_png)
 
         FieldGame.write_mesh();
     }
+}
+
+void move_colored_pixels_into_separate_block_part(stk::mesh::BulkData & bulk, SimpleColoredPng & image, enum PixelColor pixelColor)
+{
+    std::vector<Pixel> coloredPixels = get_colored_pixels_by_color(image, pixelColor);
+    stk::mesh::EntityIdVector elementIds = image.get_elemIds_for_colored_pixels(coloredPixels);
+
+    stk::mesh::EntityVector elements(elementIds.size());
+    for(size_t elemI = 0; elemI < elementIds.size(); elemI++)
+        elements[elemI] = bulk.get_entity(stk::topology::ELEM_RANK, elementIds[elemI]);
+
+    stk::mesh::Part *originalPart = bulk.mesh_meta_data().get_part("Elem_Part");
+    std::string partName = "block_" + std::to_string(pixelColor);
+    stk::mesh::Part *newPart = bulk.mesh_meta_data().get_part(partName);
+    bulk.modification_begin();
+    for(stk::mesh::Entity elem : elements)
+        bulk.change_entity_parts(elem, stk::mesh::PartVector{newPart}, stk::mesh::PartVector{originalPart});
+    bulk.modification_end();
+}
+
+TEST(TOSDTWD, hex_mesh_from_image_multiple_blocks)
+{
+    stk::ParallelMachine comm = MPI_COMM_WORLD;
+    int numProcs = stk::parallel_machine_size(comm);
+    if (1 == numProcs)
+    {
+        std::string fileName = stk::unit_test_util::get_option("-i", "Tiny.png");
+        SimpleColoredPng image(fileName);
+        unsigned width = image.get_image_width();
+        unsigned height = image.get_image_height();
+
+        HexGameofLifeMesh FieldMesh(comm, width, height, 1);
+        FieldGameofLife FieldGame(FieldMesh, "junk");
+
+        stk::mesh::EntityIdVector elemIds;
+        image.fill_id_vector_with_active_pixels(elemIds);
+        FieldGame.activate_these_ids(elemIds);
+
+        stk::mesh::BulkData &bulk = FieldMesh.bulk_data();
+        move_colored_pixels_into_separate_block_part(bulk, image, BLUE);
+        move_colored_pixels_into_separate_block_part(bulk, image, GREEN);
+        move_colored_pixels_into_separate_block_part(bulk, image, RED);
+
+        FieldGame.write_mesh();
+    }
+}
+
+TEST(TwoHex, MoveSecondElementIntoNewBlockPart)
+{
+    const size_t spatialDim = 3;
+    stk::mesh::MetaData meta(spatialDim);
+    stk::ParallelMachine comm = MPI_COMM_WORLD;
+    stk::mesh::BulkData bulk(meta, comm);
+
+    stk::mesh::Part & block2 = meta.declare_part_with_topology("block_2", stk::topology::HEX_8);
+    stk::io::put_io_part_attribute(block2);
+
+    stk::io::fill_mesh("generated:2x1x1", bulk);
+
+    stk::mesh::Part *block1 = meta.get_part("block_1");
+
+    stk::mesh::Entity elem2 = bulk.get_entity(stk::topology::ELEM_RANK, 2);
+    bulk.modification_begin();
+    bulk.change_entity_parts(elem2, stk::mesh::PartVector{&block2}, stk::mesh::PartVector{block1});
+    bulk.modification_end();
+
+    stk::io::write_mesh("goo.exo", bulk);
 }
 
 

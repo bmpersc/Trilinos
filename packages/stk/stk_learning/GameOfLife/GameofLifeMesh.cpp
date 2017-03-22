@@ -66,6 +66,15 @@ void GameofLifeMesh::put_fields_on_parts()
 void GameofLifeMesh::declare_parts()
 {
     m_elemPart = &m_metaData.declare_part_with_topology("Elem_Part", m_elemType);
+
+    stk::mesh::Part &block2 = m_metaData.declare_part_with_topology("block_2", m_elemType);
+    stk::mesh::Part &block3 = m_metaData.declare_part_with_topology("block_3", m_elemType);
+    stk::mesh::Part &block4 = m_metaData.declare_part_with_topology("block_4", m_elemType);
+
+    stk::io::put_io_part_attribute(block2);
+    stk::io::put_io_part_attribute(block3);
+    stk::io::put_io_part_attribute(block4);
+
     m_activePart = &m_metaData.declare_part_with_topology("Active Part", m_elemType);
 
     m_nodeset1 = &m_metaData.declare_part("nodelist_1", stk::topology::NODE_RANK);

@@ -636,10 +636,37 @@ void get_part_ordinals_to_induce_on_lower_ranks_except_for_omits(const BulkData 
     const stk::mesh::PartVector &superset_parts = bucket_from.supersets();
 
     // Contributions of the 'from' entity:
-    for ( size_t i=0, end=superset_parts.size(); i<end; i++ ) {
-      Part & part = *superset_parts[i] ;
-      if ( part.should_induce(entity_rank_from) && ! contains_ordinal( omit.begin(), omit.end() , part.mesh_meta_data_ordinal() )) {
-          stk::util::insert_keep_sorted_and_unique(part.mesh_meta_data_ordinal(), induced_parts);
+    for ( const Part* part : superset_parts ) {
+      unsigned partOrd = part->mesh_meta_data_ordinal();
+      if ( part->should_induce(entity_rank_from) && ! contains_ordinal( omit.begin(), omit.end() , partOrd )) {
+          stk::util::insert_keep_sorted_and_unique(partOrd, induced_parts);
+      }
+    }
+  }
+}
+
+void get_part_ordinals_to_induce_on_lower_ranks(const BulkData       & mesh,
+                             const Entity           entity_from,
+                                   EntityRank       entity_rank_to,
+                                   OrdinalVector  & induced_parts)
+{
+  const bool dont_check_owner     = mesh.parallel_size() == 1; // critical for fmwk
+  const int      local_proc_rank  = mesh.parallel_rank();
+
+  // Only induce parts for normal (not back) relations. Can only trust
+  // 'entity_from' to be accurate if it is owned by the local process.
+  if ( dont_check_owner || local_proc_rank == mesh.parallel_owner_rank(entity_from) ) {
+    const Bucket   & bucket_from    = mesh.bucket(entity_from);
+    const EntityRank entity_rank_from = bucket_from.entity_rank();
+    ThrowAssert(entity_rank_from > entity_rank_to);
+
+    const stk::mesh::PartVector &superset_parts = bucket_from.supersets();
+
+    // Contributions of the 'from' entity:
+    for ( const Part* part : superset_parts ) {
+      if ( part->should_induce(entity_rank_from)) {
+          unsigned partOrd = part->mesh_meta_data_ordinal();
+          stk::util::insert_keep_sorted_and_unique(partOrd, induced_parts);
       }
     }
   }
@@ -727,7 +754,7 @@ stk::mesh::Entity get_or_create_face_at_element_side(stk::mesh::BulkData & bulk,
         }
     }
     if (!bulk.is_valid(new_face)) {
-        new_face = bulk.declare_element_side(new_face_global_id, elem, side_ordinal, parts);
+        new_face = bulk.declare_element_side(elem, side_ordinal, parts);
     } else {
         bulk.change_entity_parts(new_face, parts );
     }
@@ -789,7 +816,7 @@ void connect_face_to_other_elements(stk::mesh::BulkData & bulk,
                 std::vector<stk::mesh::Entity> other_elem_side_nodes(other_elem_side_topology.num_nodes());
                 other_elem_topology.face_nodes(bulk.begin_nodes(other_elem),other_elem_side,&other_elem_side_nodes[0]);
                 if (should_face_be_connected_to_element_side(side_nodes,other_elem_side_nodes,other_elem_side_topology,element_shell_status[count])) {
-                    stk::mesh::declare_element_side(bulk, other_elem, face, other_elem_side);
+                    stk::mesh::connect_side_to_element_with_ordinal(bulk, other_elem, face, other_elem_side);
                     break;
                 }
             }
