@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 National Technology & Engineering Solutions
+ * Copyright (c) 2014-2017 National Technology & Engineering Solutions
  * of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
  * NTESS, the U.S. Government retains certain rights in this software.
  *
@@ -99,6 +99,7 @@ namespace SEAMS {
       const char *(*strfnct_d)(double);
       const char *(*strfnct_a)(const array *);
       const char *(*strfnct_dd)(double, double);
+      const char *(*strfnct_cc)(char *, char *);
       const char *(*strfnct_ccc)(char *, char *, char *);
       const char *(*strfnct_dcc)(double, char *, char *);
       const char *(*strfnct_dcccc)(double, char *, char *, char *, char *);
@@ -116,9 +117,9 @@ namespace SEAMS {
             fnctptr_ccd(nullptr), fnctptr_dddd(nullptr), fnctptr_ddddc(nullptr),
             fnctptr_dddddd(nullptr), fnctptr_a(nullptr), svar(nullptr), strfnct(nullptr),
             strfnct_c(nullptr), strfnct_d(nullptr), strfnct_a(nullptr), strfnct_dd(nullptr),
-            strfnct_ccc(nullptr), strfnct_dcc(nullptr), strfnct_dcccc(nullptr), avar(nullptr),
-            arrfnct_c(nullptr), arrfnct_cc(nullptr), arrfnct_cd(nullptr), arrfnct_dd(nullptr),
-            arrfnct_d(nullptr), arrfnct_a(nullptr)
+            strfnct_cc(nullptr), strfnct_ccc(nullptr), strfnct_dcc(nullptr), strfnct_dcccc(nullptr),
+            avar(nullptr), arrfnct_c(nullptr), arrfnct_cc(nullptr), arrfnct_cd(nullptr),
+            arrfnct_dd(nullptr), arrfnct_d(nullptr), arrfnct_a(nullptr)
       {
       }
     } value;
@@ -148,13 +149,14 @@ namespace SEAMS {
     bool        warning_msg;
     bool        info_msg;
     bool        debugging;
+    bool        dumpvars;
     bool        interactive;
     bool        immutable;
     bool        trace_parsing; // enable debug output in the bison parser
     bool        one_based_index;
     bool        keep_history; // Flag to keep a history of Aprepro substitutions
     aprepro_options()
-        : end_on_exit(false), warning_msg(true), info_msg(false), debugging(false),
+        : end_on_exit(false), warning_msg(true), info_msg(false), debugging(false), dumpvars(false),
           interactive(false), immutable(false), trace_parsing(false), one_based_index(false),
           keep_history(false)
     {
@@ -222,7 +224,7 @@ namespace SEAMS {
 
     /** Invoke the scanner and parser for a stream.
      * @param in	input stream
-     * @param sname	stream name for error messages
+     * @param in_name	stream name for error messages
      * @return		true if successfully parsed
      */
     bool parse_stream(std::istream &in, const std::string &in_name = "stream input");
@@ -267,14 +269,15 @@ namespace SEAMS {
 
     std::stack<std::ostream *> outputStream;
 
-    SEAMS::symrec *getsym(const char * /*sym_name*/) const;
+    SEAMS::symrec *getsym(const char *sym_name) const;
+    SEAMS::symrec *getsym(const std::string &sym_name) const;
     SEAMS::symrec *putsym(const std::string &sym_name, SYMBOL_TYPE sym_type, bool is_internal);
 
     void add_variable(const std::string &sym_name, const std::string &sym_value,
                       bool immutable = false);
     void add_variable(const std::string &sym_name, double sym_value, bool immutable = false);
     std::vector<std::string> get_variable_names(bool doInternal = false);
-    void remove_variable(const std::string &sym_name);
+    void                     remove_variable(const std::string &sym_name);
 
     int set_option(const std::string &option, const std::string &optional_value = std::string(""));
 
@@ -302,9 +305,10 @@ namespace SEAMS {
 
     void dumpsym(const char *type, bool doInternal) const;
     void dumpsym(int type, bool doInternal) const;
+    void dumpsym(int type, const char *pre, bool doInternal) const;
 
   private:
-    void init_table(const char *comment);
+    void                  init_table(const char *comment);
     std::vector<symrec *> sym_table;
     std::ostringstream    parsingResults;
 

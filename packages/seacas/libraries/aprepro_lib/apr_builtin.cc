@@ -1,4 +1,4 @@
-// Copyright (c) 2014 National Technology & Engineering Solutions
+// Copyright (c) 2014-2017 National Technology & Engineering Solutions
 // of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
 // NTESS, the U.S. Government retains certain rights in this software.
 //
@@ -37,7 +37,6 @@
 #include <cerrno>
 #include <cfenv>
 #include <cmath>
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -65,7 +64,8 @@
 #endif
 
 namespace {
-  std::mt19937_64 rng;
+  std::random_device rd;
+  std::mt19937_64    rng(rd());
 
   void reset_error()
   {
@@ -809,6 +809,24 @@ namespace SEAMS {
   const char *do_dumpvar()
   {
     aprepro->dumpsym(SEAMS::Parser::token::VAR, true);
+    return (nullptr);
+  }
+
+  const char *do_dumpsym1(char *pre)
+  {
+    aprepro->dumpsym(SEAMS::Parser::token::VAR, pre, false);
+    return (nullptr);
+  }
+
+  const char *do_dumpfunc1(char *pre)
+  {
+    aprepro->dumpsym(SEAMS::Parser::token::FNCT, pre, true);
+    return (nullptr);
+  }
+
+  const char *do_dumpvar1(char *pre)
+  {
+    aprepro->dumpsym(SEAMS::Parser::token::VAR, pre, true);
     return (nullptr);
   }
 

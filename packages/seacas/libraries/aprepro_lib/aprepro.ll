@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 National Technology & Engineering Solutions
+ * Copyright (c) 2014-2017 National Technology & Engineering Solutions
  * of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
  * NTESS, the U.S. Government retains certain rights in this software.
  * 
@@ -62,7 +62,7 @@ typedef SEAMS::Parser::token_type token_type;
 
 #define show(x)   *(aprepro->infoStream) << "<" << x << ">" << std::flush;
  namespace SEAMS {
-   extern int echo;
+   extern bool echo;
    extern const char *get_temp_filename(void);
    extern char *pathopen(const char *file);
    extern void  conv_string(const char *string);
@@ -823,6 +823,10 @@ namespace SEAMS {
       return (1);
     }
     else if (aprepro.string_interactive() && loop_lvl) {
+      return (1);
+    }
+    else if (aprepro.isCollectingLoop) {
+      yyerror("End-of-file detected inside loop. Check loop syntax. {endloop} must be on line by itself.");
       return (1);
     }
     else {

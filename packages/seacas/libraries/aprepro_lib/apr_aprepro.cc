@@ -1,4 +1,4 @@
-// Copyright (c) 2014 National Technology & Engineering Solutions
+// Copyright (c) 2014-2017 National Technology & Engineering Solutions
 // of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
 // NTESS, the U.S. Government retains certain rights in this software.
 //
@@ -49,7 +49,7 @@
 
 namespace {
   const unsigned int HASHSIZE       = 5939;
-  const char *       version_string = "4.35 (2017/08/14)";
+  const char *       version_string = "5.03 (2017/11/14)";
 
   unsigned hash_symbol(const char *symbol)
   {
@@ -318,12 +318,12 @@ namespace SEAMS {
     int  parser_type = 0;
     bool is_function = false;
     switch (sym_type) {
-    case VARIABLE: parser_type                  = Parser::token::VAR; break;
-    case STRING_VARIABLE: parser_type           = Parser::token::SVAR; break;
-    case ARRAY_VARIABLE: parser_type            = Parser::token::AVAR; break;
-    case IMMUTABLE_VARIABLE: parser_type        = Parser::token::IMMVAR; break;
+    case VARIABLE: parser_type = Parser::token::VAR; break;
+    case STRING_VARIABLE: parser_type = Parser::token::SVAR; break;
+    case ARRAY_VARIABLE: parser_type = Parser::token::AVAR; break;
+    case IMMUTABLE_VARIABLE: parser_type = Parser::token::IMMVAR; break;
     case IMMUTABLE_STRING_VARIABLE: parser_type = Parser::token::IMMSVAR; break;
-    case UNDEFINED_VARIABLE: parser_type        = Parser::token::UNDVAR; break;
+    case UNDEFINED_VARIABLE: parser_type = Parser::token::UNDVAR; break;
     case FUNCTION:
       parser_type = Parser::token::FNCT;
       is_function = true;
@@ -345,10 +345,10 @@ namespace SEAMS {
     // retrn that pointer instead of creating a new symrec.
 
     if (is_function) {
-      symrec *ptr = getsym(sym_name.c_str());
+      symrec *ptr = getsym(sym_name);
       if (ptr != nullptr) {
         if (ptr->type != parser_type) {
-          std::string err = "Overloaded function " + sym_name + "does not return same type";
+          std::string err = "Overloaded function '" + sym_name + "' does not return same type";
           error(err, false);
           throw std::runtime_error(err);
         }
@@ -357,6 +357,14 @@ namespace SEAMS {
         // Note that the info and syntax fields will contain the
         // latest values, not the firstt...
         return ptr;
+      }
+    }
+    else {
+      symrec *ptr = getsym(sym_name);
+      if (ptr != nullptr) {
+        std::string err = "Internal Error: Variable '" + sym_name + "' is already defined.";
+        error(err, false);
+        throw std::runtime_error(err);
       }
     }
 
@@ -385,6 +393,9 @@ namespace SEAMS {
 
     if (option == "--debug" || option == "-d") {
       ap_options.debugging = true;
+    }
+    if (option == "--dumpvars" || option == "-D") {
+      ap_options.dumpvars = true;
     }
     else if (option == "--version" || option == "-v") {
       std::cerr << "Algebraic Preprocessor (Aprepro) version " << version() << "\n";
@@ -468,6 +479,7 @@ namespace SEAMS {
           << "\nAprepro version " << version() << "\n"
           << "\nUsage: aprepro [options] [-I path] [-c char] [var=val] [filein] [fileout]\n"
           << "          --debug or -d: Dump all variables, debug loops/if/endif\n"
+          << "       --dumpvars or -D: Dump all variables at end of run        \n"
           << "        --version or -v: Print version number to stderr          \n"
           << "      --immutable or -X: All variables are immutable--cannot be modified\n"
           << "--one_based_index or -1: Array indexing is one-based (default = zero-based)\n"
@@ -501,8 +513,16 @@ namespace SEAMS {
   {
     if (check_valid_var(sym_name.c_str())) {
       SYMBOL_TYPE type = immutable ? IMMUTABLE_STRING_VARIABLE : STRING_VARIABLE;
-      symrec *    var  = putsym(sym_name, type, false);
-      char *      tmp  = nullptr;
+      symrec *    var  = getsym(sym_name);
+      if (var == nullptr) {
+        var = putsym(sym_name, type, false);
+      }
+      else {
+        if (var->type != type) {
+          var->type = type;
+        }
+      }
+      char *tmp = nullptr;
       new_string(sym_value.c_str(), &tmp);
       var->value.svar = tmp;
     }
@@ -515,8 +535,16 @@ namespace SEAMS {
   {
     if (check_valid_var(sym_name.c_str())) {
       SYMBOL_TYPE type = immutable ? IMMUTABLE_VARIABLE : VARIABLE;
-      symrec *    var  = putsym(sym_name, type, false);
-      var->value.var   = sym_value;
+      symrec *    var  = getsym(sym_name);
+      if (var == nullptr) {
+        var = putsym(sym_name, type, false);
+      }
+      else {
+        if (var->type != type) {
+          var->type = type;
+        }
+      }
+      var->value.var = sym_value;
     }
     else {
       warning("Invalid variable name syntax '" + sym_name + "'. Variable not defined.\n", false);
@@ -555,7 +583,7 @@ namespace SEAMS {
 
   void Aprepro::remove_variable(const std::string &sym_name)
   {
-    symrec *ptr = getsym(sym_name.c_str());
+    symrec *ptr = getsym(sym_name);
     bool    is_valid_variable =
         (ptr != nullptr) && (!ptr->isInternal) &&
         ((ptr->type == Parser::token::VAR) || (ptr->type == Parser::token::SVAR) ||
@@ -610,6 +638,8 @@ namespace SEAMS {
     return nullptr;
   }
 
+  symrec *Aprepro::getsym(const std::string &sym_name) const { return getsym(sym_name.c_str()); }
+
   void Aprepro::dumpsym(const char *type, bool doInternal) const
   {
     if (type[0] == 'v') {
@@ -620,39 +650,62 @@ namespace SEAMS {
     }
   }
 
-  void Aprepro::dumpsym(int type, bool doInternal) const
+  void Aprepro::dumpsym(int type, bool doInternal) const { dumpsym(type, nullptr, doInternal); }
+
+  void Aprepro::dumpsym(int type, const char *pre, bool doInternal) const
   {
     const char *comment = getsym("_C_")->value.svar;
     int         width   = 10; // controls spacing/padding for the variable names
+    std::string spre;
+
+    if (pre) {
+      spre = pre;
+    }
 
     if (type == Parser::token::VAR || type == Parser::token::SVAR || type == Parser::token::AVAR) {
       (*infoStream) << "\n" << comment << "   Variable    = Value" << '\n';
 
       for (unsigned hashval = 0; hashval < HASHSIZE; hashval++) {
         for (symrec *ptr = sym_table[hashval]; ptr != nullptr; ptr = ptr->next) {
-          if ((doInternal && ptr->isInternal) || (!doInternal && !ptr->isInternal)) {
-            if (ptr->type == Parser::token::VAR) {
-              (*infoStream) << comment << "  {" << std::left << std::setw(width) << ptr->name
-                            << "\t= " << std::setprecision(10) << ptr->value.var << "}" << '\n';
-            }
-            else if (ptr->type == Parser::token::IMMVAR) {
-              (*infoStream) << comment << "  {" << std::left << std::setw(width) << ptr->name
-                            << "\t= " << std::setprecision(10) << ptr->value.var << "}\t(immutable)"
-                            << '\n';
-            }
-            else if (ptr->type == Parser::token::SVAR) {
-              (*infoStream) << comment << "  {" << std::left << std::setw(width) << ptr->name
-                            << "\t= \"" << ptr->value.svar << "\"}" << '\n';
-            }
-            else if (ptr->type == Parser::token::IMMSVAR) {
-              (*infoStream) << comment << "  {" << std::left << std::setw(width) << ptr->name
-                            << "\t= \"" << ptr->value.svar << "\"}\t(immutable)" << '\n';
-            }
-            else if (ptr->type == Parser::token::AVAR) {
-              array *arr = ptr->value.avar;
-              (*infoStream) << comment << "  {" << std::left << std::setw(width) << ptr->name
-                            << "\t (array) rows = " << arr->rows << ", cols = " << arr->cols << "} "
-                            << '\n';
+          if (pre == nullptr || ptr->name.find(spre) != std::string::npos) {
+            if ((doInternal && ptr->isInternal) || (!doInternal && !ptr->isInternal)) {
+              if (ptr->type == Parser::token::VAR) {
+                (*infoStream) << comment << "  {" << std::left << std::setw(width) << ptr->name
+                              << "\t= " << std::setprecision(10) << ptr->value.var << "}" << '\n';
+              }
+              else if (ptr->type == Parser::token::IMMVAR) {
+                (*infoStream) << comment << "  {" << std::left << std::setw(width) << ptr->name
+                              << "\t= " << std::setprecision(10) << ptr->value.var
+                              << "}\t(immutable)" << '\n';
+              }
+              else if (ptr->type == Parser::token::SVAR) {
+                if (index(ptr->value.svar, '\n') != nullptr ||
+                    index(ptr->value.svar, '"') != nullptr) {
+                  (*infoStream) << comment << "  {" << std::left << std::setw(width) << ptr->name
+                                << "\t= '" << ptr->value.svar << "'}" << '\n';
+                }
+                else {
+                  (*infoStream) << comment << "  {" << std::left << std::setw(width) << ptr->name
+                                << "\t= \"" << ptr->value.svar << "\"}" << '\n';
+                }
+              }
+              else if (ptr->type == Parser::token::IMMSVAR) {
+                if (index(ptr->value.svar, '\n') != nullptr ||
+                    index(ptr->value.svar, '"') != nullptr) {
+                  (*infoStream) << comment << "  {" << std::left << std::setw(width) << ptr->name
+                                << "\t= '" << ptr->value.svar << "'}\t(immutable)" << '\n';
+                }
+                else {
+                  (*infoStream) << comment << "  {" << std::left << std::setw(width) << ptr->name
+                                << "\t= \"" << ptr->value.svar << "\"}\t(immutable)" << '\n';
+                }
+              }
+              else if (ptr->type == Parser::token::AVAR) {
+                array *arr = ptr->value.avar;
+                (*infoStream) << comment << "  {" << std::left << std::setw(width) << ptr->name
+                              << "\t (array) rows = " << arr->rows << ", cols = " << arr->cols
+                              << "} " << '\n';
+              }
             }
           }
         }
@@ -663,9 +716,11 @@ namespace SEAMS {
       (*infoStream) << "\nFunctions returning double:" << '\n';
       for (unsigned hashval = 0; hashval < HASHSIZE; hashval++) {
         for (symrec *ptr = sym_table[hashval]; ptr != nullptr; ptr = ptr->next) {
-          if (ptr->type == Parser::token::FNCT) {
-            (*infoStream) << std::left << std::setw(2 * width) << ptr->syntax << ":  " << ptr->info
-                          << '\n';
+          if (pre == nullptr || ptr->name.find(spre) != std::string::npos) {
+            if (ptr->type == Parser::token::FNCT) {
+              (*infoStream) << std::left << std::setw(2 * width) << ptr->syntax << ":  "
+                            << ptr->info << '\n';
+            }
           }
         }
       }
@@ -673,9 +728,11 @@ namespace SEAMS {
       (*infoStream) << "\nFunctions returning string:" << '\n';
       for (unsigned hashval = 0; hashval < HASHSIZE; hashval++) {
         for (symrec *ptr = sym_table[hashval]; ptr != nullptr; ptr = ptr->next) {
-          if (ptr->type == Parser::token::SFNCT) {
-            (*infoStream) << std::left << std::setw(2 * width) << ptr->syntax << ":  " << ptr->info
-                          << '\n';
+          if (pre == nullptr || ptr->name.find(spre) != std::string::npos) {
+            if (ptr->type == Parser::token::SFNCT) {
+              (*infoStream) << std::left << std::setw(2 * width) << ptr->syntax << ":  "
+                            << ptr->info << '\n';
+            }
           }
         }
       }
@@ -683,9 +740,11 @@ namespace SEAMS {
       (*infoStream) << "\nFunctions returning array:" << '\n';
       for (unsigned hashval = 0; hashval < HASHSIZE; hashval++) {
         for (symrec *ptr = sym_table[hashval]; ptr != nullptr; ptr = ptr->next) {
-          if (ptr->type == Parser::token::AFNCT) {
-            (*infoStream) << std::left << std::setw(2 * width) << ptr->syntax << ":  " << ptr->info
-                          << '\n';
+          if (pre == nullptr || ptr->name.find(spre) != std::string::npos) {
+            if (ptr->type == Parser::token::AFNCT) {
+              (*infoStream) << std::left << std::setw(2 * width) << ptr->syntax << ":  "
+                            << ptr->info << '\n';
+            }
           }
         }
       }
@@ -785,7 +844,7 @@ namespace SEAMS {
 namespace {
   void output_copyright()
   {
-    std::cerr << "\n\tCopyright (c) 2014 National Technology & Engineering Solutions\n"
+    std::cerr << "\n\tCopyright (c) 2014-2017 National Technology & Engineering Solutions\n"
               << "of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with\n"
               << "NTESS, the U.S. Government retains certain rights in this software.\n"
               << "\n"
