@@ -31,22 +31,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 
-#include <iostream>
-#include <map>
-#include <set>
-#include <list>
-#include <sstream>
-#include <algorithm>
-#include <stdexcept>
-
-#include <stk_search/SearchTypes.hpp>
-#include <stk_util/parallel/Parallel.hpp>
-#include <stk_util/parallel/ParallelComm.hpp>
-#include <stk_util/parallel/ParallelReduce.hpp>
+// #######################  Start Clang Header Tool Managed Headers ########################
+// clang-format off
 #include <stk_search/OctTreeOps.hpp>
+// clang-format on
+// #######################   End Clang Header Tool Managed Headers  ########################
+
 
 namespace stk {
-namespace search {
-
-} // namespace search
+// namespace search
 } // namespace stk

@@ -37,9 +37,8 @@
 #include <stk_search/IdentProc.hpp>
 #include <stk_search/BoundingBox.hpp>
 #include <stk_search/CoarseSearchBoostRTree.hpp>
+#include <stk_search/CoarseSearchKdTree.hpp>
 #include <stk_search/SearchMethod.hpp>
-#include <stk_search/KDTree_stk_interface.hpp>
-
 #include <vector>
 #include <utility>
 
@@ -122,7 +121,7 @@ void coarse_search( std::vector<std::pair<DomainBox,DomainIdent> > const& domain
 #endif
   case OCTREE:
   case KDTREE:
-    kdtree_search(domain,range,comm,intersections,communicateRangeBoxInfo);
+    coarse_search_kdtree(domain,range,comm,intersections,communicateRangeBoxInfo);
     break;
   default:
     std::cerr << "coarse_search(..) interface used does not support SearchMethod " << method << std::endl;

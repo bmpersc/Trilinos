@@ -417,7 +417,7 @@ inline void fillBoundingVolumesUsingNodesFromFile(MPI_Comm comm, const std::stri
 }
 
 template <typename Identifier>
-inline void kdtree_search(std::vector< std::pair<FloatBox, Identifier> >& local_domain, std::vector< std::pair<FloatBox, Identifier> >& local_range, MPI_Comm comm, std::vector<std::pair<Identifier,Identifier> >& searchResults)
+inline void do_kdtree_search(std::vector< std::pair<FloatBox, Identifier> >& local_domain, std::vector< std::pair<FloatBox, Identifier> >& local_range, MPI_Comm comm, std::vector<std::pair<Identifier,Identifier> >& searchResults)
 {
     stk::search::coarse_search(local_domain, local_range, stk::search::KDTREE, comm, searchResults);
 }
@@ -449,7 +449,7 @@ inline void coarse_search_new(std::vector< std::pair<FloatBox, Identifier> >& lo
 {
     if ( algorithm == KDTREE || algorithm == OCTREE )
     {
-        kdtree_search(local_domain, local_range, comm, searchResults);
+        do_kdtree_search(local_domain, local_range, comm, searchResults);
     }
     else if ( algorithm == BOOST_RTREE )
     {

@@ -34,20 +34,18 @@
 #ifndef stk_util_util_OctTreeOps_hpp
 #define stk_util_util_OctTreeOps_hpp
 
-#include <utility>
-#include <vector>
-#include <map>
-#include <set>
-#include <list>
-#include <iostream>
-#include <stdexcept>
+// #######################  Start Clang Header Tool Managed Headers ########################
+// clang-format off
+#include <set>                                 // for set
+#include <stk_util/parallel/CommSparse.hpp>    // for CommSparse
+#include <stk_util/parallel/Parallel.hpp>      // for ParallelMachine
+#include <stk_util/parallel/ParallelComm.hpp>  // for CommBuffer
+#include <utility>                             // for pair
+#include <vector>                              // for vector
+#include "mpi.h"                               // for ompi_communicator_t
+// clang-format on
+// #######################   End Clang Header Tool Managed Headers  ########################
 
-#include <stk_util/parallel/Parallel.hpp>
-#include <stk_util/parallel/ParallelComm.hpp>
-#include <stk_util/parallel/CommSparse.hpp>
-#include <stk_util/parallel/ParallelReduce.hpp>
-#include <stk_util/parallel/ParallelReduceBool.hpp>
-#include <stk_util/environment/ReportHandler.hpp>
 
 namespace stk {
 namespace search {

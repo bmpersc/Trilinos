@@ -160,7 +160,7 @@ STK_MATH_FORCE_INLINE double min(const double x, const double y) {
 }
 
 STK_MATH_FORCE_INLINE bool isnan(const double a) {
-  return a!=a;
+  return std::isnan(a);
 }
 
 STK_MATH_FORCE_INLINE double if_then_else(const bool b, const double v1, const double v2) {
@@ -282,7 +282,7 @@ STK_MATH_FORCE_INLINE float min(const float x, const float y) {
 }
 
 STK_MATH_FORCE_INLINE bool isnan(const float a) {
-  return a!=a;
+  return std::isnan(a);
 }
 
 STK_MATH_FORCE_INLINE float if_then_else(const bool b, const float v1, const float v2) {

@@ -46,8 +46,6 @@
 namespace stk {
   namespace search {
 
-
-
    template <typename DomainBox>
     inline void GlobalBoxCombine(DomainBox &box_array, MPI_Comm &communicator)
     {
@@ -265,9 +263,7 @@ namespace stk {
 #endif
 
     }
-  }
+  } // end namespace search
+} // end namespace stk
 
-
-}
-
-#endif /* GEOMETRY_TOOLKIT_INCLUDE_GEOM_COARSESEARCHMULTIALG_IMPL_H_ */
+#endif
