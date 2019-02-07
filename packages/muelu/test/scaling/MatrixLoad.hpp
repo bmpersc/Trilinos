@@ -77,11 +77,12 @@ void MatrixLoad(Teuchos::RCP<const Teuchos::Comm<int> > &comm,  Xpetra::Underlyi
                 const std::string & colMapFile, 
                 const std::string & domainMapFile, 
                 const std::string & rangeMapFile, 
-                const std::string & coordFile, const std::string &nullFile,
+                const std::string & coordFile, const std::string &nullFile, const std::string &materialFile,
                 Teuchos::RCP<const Xpetra::Map<LocalOrdinal,GlobalOrdinal,Node> >          & map, 
                 Teuchos::RCP<Xpetra::Matrix<Scalar,LocalOrdinal,GlobalOrdinal,Node> >      & A, 
                 Teuchos::RCP<Xpetra::MultiVector<typename Teuchos::ScalarTraits<Scalar>::magnitudeType,LocalOrdinal,GlobalOrdinal,Node> > & coordinates,
                 Teuchos::RCP<Xpetra::MultiVector<Scalar,LocalOrdinal,GlobalOrdinal,Node> > & nullspace,
+                Teuchos::RCP<Xpetra::Vector<Scalar,LocalOrdinal,GlobalOrdinal,Node> > & material,
                 Teuchos::RCP<Xpetra::MultiVector<Scalar,LocalOrdinal,GlobalOrdinal,Node> > & X, 
                 Teuchos::RCP<Xpetra::MultiVector<Scalar,LocalOrdinal,GlobalOrdinal,Node> > & B,
                 Galeri::Xpetra::Parameters<GlobalOrdinal> & galeriParameters,  Xpetra::Parameters & xpetraParameters, 
@@ -192,6 +193,8 @@ void MatrixLoad(Teuchos::RCP<const Teuchos::Comm<int> > &comm,  Xpetra::Underlyi
 
     if (!nullFile.empty())
       nullspace = Xpetra::IO<SC,LO,GO,Node>::ReadMultiVector(nullFile, map);
+    if (!materialFile.empty())
+      material = Xpetra::IO<SC,LO,GO,Node>::ReadMultiVector(materialFile, map)->getVectorNonConst(0);
   }
 
   X = VectorFactory::Build(map);

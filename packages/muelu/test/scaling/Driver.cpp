@@ -266,6 +266,7 @@ int main_(Teuchos::CommandLineProcessor &clp, Xpetra::UnderlyingLib& lib, int ar
   std::string matrixFile;                            clp.setOption("matrix",                &matrixFile,        "matrix data file");
   std::string rhsFile;                               clp.setOption("rhs",                   &rhsFile,           "rhs data file");
   std::string coordFile;                             clp.setOption("coords",                &coordFile,         "coordinates data file");
+  std::string materialFile;                          clp.setOption("material",              &materialFile,      "material data file");
   std::string nullFile;                              clp.setOption("nullspace",             &nullFile,          "nullspace data file");
   int         numRebuilds       = 0;                 clp.setOption("rebuild",               &numRebuilds,       "#times to rebuild hierarchy");
   int         numResolves       = 0;                 clp.setOption("resolve",               &numResolves,       "#times to redo solve");
@@ -352,10 +353,11 @@ int main_(Teuchos::CommandLineProcessor &clp, Xpetra::UnderlyingLib& lib, int ar
   RCP<const Map>   map;
   RCP<RealValuedMultiVector> coordinates;
   RCP<Xpetra::MultiVector<SC,LO,GO,NO> > nullspace;
+  RCP<Xpetra::Vector<SC,LO,GO,NO> > material;
   RCP<MultiVector> X, B;
 
   // Load the matrix off disk (or generate it via Galeri)
-  MatrixLoad<SC,LO,GO,NO>(comm,lib,binaryFormat,matrixFile,rhsFile,rowMapFile,colMapFile,domainMapFile,rangeMapFile,coordFile,nullFile,map,A,coordinates,nullspace,X,B,galeriParameters,xpetraParameters,galeriStream);
+  MatrixLoad<SC,LO,GO,NO>(comm,lib,binaryFormat,matrixFile,rhsFile,rowMapFile,colMapFile,domainMapFile,rangeMapFile,coordFile,nullFile,materialFile,map,A,coordinates,nullspace,material,X,B,galeriParameters,xpetraParameters,galeriStream);
   comm->barrier();
   tm = Teuchos::null;
 
@@ -450,6 +452,8 @@ int main_(Teuchos::CommandLineProcessor &clp, Xpetra::UnderlyingLib& lib, int ar
       bool useAMGX = mueluList.isParameter("use external multigrid package") && (mueluList.get<std::string>("use external multigrid package") == "amgx");
       bool useML = mueluList.isParameter("use external multigrid package") && (mueluList.get<std::string>("use external multigrid package") == "ml");
       if(useML && lib != Xpetra::UseEpetra) throw std::runtime_error("Error: Cannot use ML on non-epetra matrices");
+
+      if(!material.is_null()) mueluList.set("Material Coordinates",material);
 
       RCP<Hierarchy> H;
       //      RCP<MueLu::TpetraOperator<SC,LO,GO,NO> > AMGXprec;
